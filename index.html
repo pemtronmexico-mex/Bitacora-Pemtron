@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PEMTRON - Bitácora Multihoja (Firebase)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- SDK DE FIREBASE (VERSIÓN COMPAT PARA SCRIPTS CLÁSICOS) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif; }
+        body { background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* ==========================================
+           PANTALLA DE LOGIN (GLASSMORPHISM)
+           ========================================== */
+        #loginScreen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1e1b4b, #7f1d1d, #1e3a8a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+        #loginScreen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 30px;
+            padding: 40px 30px;
+            width: 350px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            color: white;
+        }
+        .login-avatar {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-avatar i {
+            font-size: 50px;
+            color: rgba(255,255,255,0.7);
+        }
+        .login-input-group {
+            position: relative;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .login-input-group i {
+            position: absolute;
+            left: 0;
+            top: 10px;
+            color: rgba(255,255,255,0.8);
+            font-size: 1.1rem;
+        }
+        .login-input-group input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid rgba(255,255,255,0.5);
+            padding: 10px 10px 10px 30px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .login-input-group input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        .login-input-group input:focus {
+            border-bottom-color: #fff;
+        }
+        .login-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            margin-bottom: 30px;
+            color: rgba(255,255,255,0.8);
+        }
+        .login-options label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .login-options a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .login-options a:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(90deg, #4f1c4f, #2c3e8f);
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            letter-spacing: 2px;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .login-error {
+            color: #ff6b6b;
+            font-size: 0.8rem;
+            margin-top: 15px;
+            display: none;
+            font-weight: bold;
+        }
+
+        /* ==========================================
+           ESTILOS GENERALES DE LA APP
+           ========================================== */
+        .app-container { display: flex; flex-direction: column; height: 100%; }
+        
+        .top-header {
+            background: linear-gradient(135deg, #0a2b3e, #1a4a6f);
+            padding: 1rem 1.5rem; color: white;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 10;
+        }
+        .top-header h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .top-header-actions { display: flex; gap: 0.8rem; align-items: center; }
+        .btn-export {
+            background: #28a745; color: white; border: none; padding: 0.5rem 1rem; 
+            border-radius: 2rem; cursor: pointer; font-weight: 600; display: inline-flex; 
+            align-items: center; gap: 6px; font-size: 0.85rem; transition: 0.2s;
+        }
+        .btn-excel { background: #1e7e34; }
+        .btn-pdf { background: #dc3545; }
+        .btn-admin { background: #6610f2; }
+        .btn-logs { background: #f59e0b; }
+        .btn-logout { background: #dc3545; }
+        .btn-users { background: #0d9488; }
+        .btn-export:hover { opacity: 0.85; transform: translateY(-1px); }
+
+        .tabs-container {
+            background: white; padding: 0 1.5rem;
+            display: flex; align-items: center; gap: 0.5rem;
+            border-bottom: 2px solid #cbd5e1; overflow-x: auto;
+            min-height: 50px;
+        }
+        .tab {
+            padding: 0.8rem 1.5rem; background: #f8fafc; cursor: pointer;
+            border: 1px solid #e2e8f0; border-bottom: none;
+            border-radius: 8px 8px 0 0; font-weight: 600; color: #64748b;
+            display: flex; align-items: center; gap: 8px; white-space: nowrap;
+            transition: 0.2s; margin-bottom: -2px;
+        }
+        .tab:hover { background: #f1f5f9; color: #1a4a6f; }
+        .tab.active { background: white; color: #1a4a6f; border-top: 3px solid #1a4a6f; border-bottom: 2px solid white; z-index: 2; }
+        .tab-close { font-size: 0.8rem; color: #94a3b8; cursor: pointer; padding: 2px; border-radius: 50%; margin-left: 5px;}
+        .tab-close:hover { background: #fee2e2; color: #dc3545; }
+        .btn-add-tab {
+            background: #e2e8f0; border: none; padding: 0.5rem 1rem;
+            border-radius: 8px; cursor: pointer; font-weight: bold; color: #1a4a6f;
+            white-space: nowrap; display: flex; align-items: center; gap: 5px;
+        }
+        .btn-add-tab:hover { background: #cbd5e1; }
+
+        .main-content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+        
+        .dashboard-stats { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card {
+            background: white; border-radius: 1rem; padding: 1rem 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex: 1 1 180px; min-width: 140px;
+            display: flex; align-items: center; gap: 0.8rem;
+            border-left: 5px solid #1a4a6f;
+        }
+        .stat-icon { font-size: 1.8rem; width: 2.5rem; text-align: center; }
+        .stat-info { display: flex; flex-direction: column; }
+        .stat-value { font-size: 1.6rem; font-weight: 800; color: #1a4a6f; line-height: 1.1; }
+        .stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
+        .stat-card.status-pendiente { border-left-color: #ff9800; }
+        .stat-card.status-proceso { border-left-color: #2196f3; }
+        .stat-card.status-resuelto { border-left-color: #4caf50; }
+
+        .charts-container { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-card {
+            background: white; border-radius: 1.2rem; padding: 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex: 1 1 340px;
+            min-width: 300px; display: flex; flex-direction: column;
+        }
+        .chart-card.full-width { flex: 1 1 100%; }
+        .chart-card h4 { font-size: 0.9rem; color: #1a4a6f; margin-bottom: 0.8rem; text-transform: uppercase; }
+        .chart-wrapper { position: relative; width: 100%; height: 250px; }
+
+        .main-layout { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+        .calendar-sidebar {
+            flex: 1; min-width: 320px; background: white; border-radius: 1.2rem;
+            padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); height: fit-content;
+        }
+        .content-main { flex: 3; min-width: 300px; }
+
+        .calendar-title { font-weight: bold; margin-bottom: 0.8rem; color: #1a4a6f; display: flex; justify-content: space-between; align-items: center; }
+        .btn-add-calendar-event { background: #28a745; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 1.5rem; cursor: pointer; font-size: 0.7rem; }
+
+        .search-bar { background: white; border-radius: 1rem; padding: 0.8rem 1.2rem; margin-bottom: 1.5rem; display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; }
+        .search-bar input { padding: 0.6rem 1rem; border: 1px solid #ddd; border-radius: 2rem; flex: 1; min-width: 120px; }
+        .btn-search { background: #1a4a6f; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+        .btn-secondary { background: #6c757d; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+        .btn-refresh { background: #17a2b8; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+        
+        .machine-card { background: white; border-radius: 1.2rem; margin-bottom: 2rem; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .machine-header { background: #f8fafc; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; }
+        .machine-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .btn-edit-machine { background: #cbd5e1; color: #1a4a6f; border: none; padding: 0.4rem 1rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+        .btn-delete-machine { background: #fee2e2; color: #c00; border: none; padding: 0.4rem 1rem; border-radius: 2rem; cursor: pointer; font-weight: 600; }
+        
+        .entries-table { width: 100%; border-collapse: collapse; }
+        .entries-table th, .entries-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .entry-type-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
+        .type-falla { background: #dc3545; color: white; }
+        .type-mantenimiento { background: #ffc107; color: #000; }
+        .type-calibracion { background: #17a2b8; color: white; }
+        .type-observacion { background: #6c757d; color: white; }
+        .type-otro { background: #6610f2; color: white; }
+        .action-buttons { display: flex; gap: 0.5rem; }
+        .btn-ver, .btn-eliminar-entry, .btn-editar-entry { background: #e2e8f0; border: none; padding: 0.3rem 0.8rem; border-radius: 1rem; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+        .btn-editar-entry { background: #cbd5e1; color: #1a4a6f; }
+        .btn-eliminar-entry { background: #fee2e2; color: #c00; }
+        .btn-agregar-entry { margin: 1rem; background: #f0f9ff; border: 1px dashed #1a4a6f; padding: 0.5rem; border-radius: 2rem; cursor: pointer; width: calc(100% - 2rem); font-weight: bold; color: #1a4a6f; }
+
+        .serial-detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1rem; }
+        .serial-timeline-container { max-height: 450px; overflow-y: auto; padding-right: 0.5rem; }
+        .serial-timeline { position: relative; padding-left: 1.2rem; border-left: 2px solid #cbd5e1; }
+        .timeline-item { position: relative; margin-bottom: 1.2rem; }
+        .timeline-dot { position: absolute; left: -1.45rem; top: 0.2rem; width: 10px; height: 10px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px #cbd5e1; }
+        
+        .flowchart-container { padding: 1rem; background: #f8fafc; border-radius: 0.8rem; border: 1px solid #e2e8f0; display: flex; justify-content: center; overflow-y: auto; max-height: 450px; }
+        .flowchart-flow { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 250px; }
+        .flow-shape { display: flex; align-items: center; justify-content: center; text-align: center; color: white; font-weight: 600; font-size: 0.7rem; padding: 0.5rem 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; cursor: pointer; z-index: 2; }
+        .shape-oval { background: #2196F3; border-radius: 50px; min-width: 100px; padding: 0.4rem 1rem; font-size: 0.8rem; }
+        .shape-process { background: #4CAF50; border-radius: 4px; min-width: 140px; min-height: 40px; }
+        .shape-decision { background: #FFC107; color: #333; width: 80px; height: 80px; transform: rotate(45deg); margin: 1rem 0; font-size: 0.6rem; font-weight: 700; }
+        .shape-decision span { transform: rotate(-45deg); display: block; width: 80px; text-align: center; }
+        .flow-connector { width: 2px; height: 25px; background: #333; position: relative; z-index: 1; }
+        .flow-connector::after { content: ''; position: absolute; bottom: -4px; left: -4px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #333; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto; }
+        .modal-content { background: white; max-width: 850px; margin: 2rem auto; border-radius: 1.5rem; padding: 1.5rem; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-field { display: flex; flex-direction: column; }
+        .form-field.full-width { grid-column: span 2; }
+        .form-field label { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; color: #1e3a5f; }
+        .form-field input, .form-field select, .form-field textarea { padding: 0.5rem; border-radius: 0.6rem; border: 1px solid #ccc; }
+        .dynamic-field { display: none; margin-top: 0.5rem; }
+        .btn-guardar { background: #1a4a6f; color: white; border: none; padding: 0.7rem; border-radius: 2rem; margin-top: 1rem; cursor: pointer; width: 100%; font-weight: 600; }
+        .close-modal { font-size: 1.5rem; cursor: pointer; }
+
+        .toast-notification { position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; display: none; align-items: center; gap: 10px; z-index: 2000; }
+        
+        .legend { display: flex; gap: 1rem; margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.8rem; font-size: 0.7rem; flex-wrap: wrap; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; }
+        
+        .users-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .users-table th, .users-table td { padding: 0.8rem; border-bottom: 1px solid #e2e8f0; text-align: left; }
+
+        .detail-row { display: flex; margin-bottom: 0.5rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.5rem; }
+        .detail-label { font-weight: bold; color: #1a4a6f; width: 120px; font-size: 0.85rem; }
+        .detail-value { flex: 1; font-size: 0.9rem; color: #333; }
+
+        .user-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
+        .badge-master { background: #6610f2; color: white; }
+        .badge-delete { background: #dc3545; color: white; }
+        .badge-read { background: #6c757d; color: white; }
+
+        /* ESTILOS PARA EL MENÚ DESPLEGABLE DE EXPORTACIÓN */
+        .dropdown-export {
+            position: relative;
+            display: inline-block;
+        }
+        .btn-dropdown {
+            background: #4f46e5; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 2rem; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s;
+        }
+        .btn-dropdown:hover { background: #4338ca; transform: translateY(-1px); }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+            z-index: 100;
+            border-radius: 8px;
+            overflow: hidden;
+            top: 100%;
+            left: 0;
+            margin-top: 5px;
+        }
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .dropdown-content a:hover { background-color: #f1f1f1; }
+        .dropdown-export:hover .dropdown-content { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- ==========================================
+     PANTALLA DE LOGIN (BLOQUEO TOTAL)
+     ========================================== -->
+<div id="loginScreen">
+    <div class="login-card">
+        <div class="login-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        
+        <div class="login-input-group">
+            <i class="fas fa-envelope"></i>
+            <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username">
+        </div>
+        
+        <div class="login-input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
+        </div>
+        
+        <div class="login-options">
+            <label>
+                <input type="checkbox"> Recordarme
+            </label>
+            <a onclick="openRecoveryModal()">¿Olvidaste tu contraseña?</a>
+        </div>
+        
+        <button class="login-btn" onclick="verifyLogin()">LOGIN</button>
+        
+        <div id="loginError" class="login-error">
+            <i class="fas fa-exclamation-circle"></i> Credenciales incorrectas
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL DE RECUPERACIÓN DE CONTRASEÑA
+     ========================================== -->
+<div id="recoveryModal" class="modal" style="z-index: 100000; background: rgba(0,0,0,0.8);">
+    <div class="modal-content" style="max-width: 400px; margin-top: 10vh;">
+        <div class="modal-header">
+            <h3><i class="fas fa-key"></i> Recuperar Contraseña</h3>
+            <span class="close-modal" onclick="document.getElementById('recoveryModal').style.display='none'">&times;</span>
+        </div>
+        
+        <div id="recoveryStep1">
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:1rem;">Ingresa tu nombre de usuario para buscar tu pregunta de seguridad.</p>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Usuario</label>
+                <input type="text" id="recoveryUser" placeholder="Ej: LDA">
+            </div>
+            <button class="btn-guardar" onclick="loadSecurityQuestion()">Siguiente</button>
+        </div>
+
+        <div id="recoveryStep2" style="display:none;">
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:1rem;">Responde tu pregunta de seguridad para restablecer la contraseña.</p>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Pregunta de Seguridad</label>
+                <input type="text" id="recoveryQuestionDisplay" disabled style="background:#f1f5f9; font-weight:bold;">
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Tu Respuesta</label>
+                <input type="text" id="recoveryAnswer" placeholder="Escribe tu respuesta">
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Nueva Contraseña</label>
+                <input type="text" id="recoveryNewPass" placeholder="Escribe tu nueva contraseña">
+            </div>
+            <button class="btn-guardar" onclick="resetPassword()" style="background:#28a745;">Restablecer Contraseña</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     APLICACIÓN PRINCIPAL (OCULTA DETRÁS DEL LOGIN)
+     ========================================== -->
+<div class="app-container" id="appContainer" style="display: none;">
+    <div class="top-header">
+        <h1><i class="fas fa-industry"></i> PEMTRON · Multihoja</h1>
+        <div class="top-header-actions">
+            <span id="currentUserLabel" style="font-size:0.8rem; opacity:0.8; display:none;"></span>
+            
+            <button id="btnUsers" class="btn-export btn-users" onclick="openUsersModal()" style="display:none;"><i class="fas fa-users-cog"></i> Usuarios</button>
+            <button id="btnLogs" class="btn-export btn-logs" onclick="openLogsModal()" style="display:none;"><i class="fas fa-history"></i> Historial</button>
+            <button id="btnLogout" class="btn-export btn-logout" onclick="logoutUser()" style="display:none;"><i class="fas fa-sign-out-alt"></i> Salir</button>
+            
+            <button id="btnExportExcelGlobal" class="btn-export btn-excel" onclick="exportExcelGlobal()" style="display:none;"><i class="fas fa-file-excel"></i> Excel Global</button>
+            <button id="btnExportPdfGlobal" class="btn-export btn-pdf" onclick="exportPDFGlobal()" style="display:none;"><i class="fas fa-file-pdf"></i> PDF Global</button>
+        </div>
+    </div>
+
+    <div class="tabs-container" id="tabsContainer">
+        <button class="btn-add-tab" onclick="openAddMachineModal()" id="btnAddTab" style="display:none;"><i class="fas fa-plus"></i> Nueva Pestaña</button>
+    </div>
+
+    <div class="main-content" id="mainContent">
+    </div>
+</div>
+
+<!-- Modal Usuarios (Solo Master) -->
+<div id="usersModal" class="modal">
+    <div class="modal-content" style="max-width: 750px;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3><i class="fas fa-users-cog"></i> Gestión de Usuarios</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="logoutUser()" style="background: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; transition: 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                    <i class="fas fa-sign-out-alt"></i> Salir (Bloquear)
+                </button>
+                <span class="close-modal" onclick="document.getElementById('usersModal').style.display='none'" style="font-size: 1.8rem; cursor: pointer; line-height: 1;">&times;</span>
+            </div>
+        </div>
+        
+        <div id="notMasterWarning" style="display:none; background:#fef3c7; color:#92400e; padding:0.8rem; border-radius:0.8rem; margin-bottom:1rem; font-size:0.85rem;">
+            <i class="fas fa-exclamation-triangle"></i> Solo el usuario <strong>LDA (Master)</strong> puede crear y gestionar usuarios.
+        </div>
+
+        <div id="masterPanel">
+            <form id="addUserForm" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+                <div class="form-field" style="flex:1; min-width:120px;"><label>Usuario</label><input type="text" id="newUsername" required></div>
+                <div class="form-field" style="flex:1; min-width:120px;"><label>Contraseña</label><input type="text" id="newPassword" required></div>
+                
+                <!-- NUEVOS CAMPOS DE SEGURIDAD -->
+                <div class="form-field" style="flex:1; min-width:150px;"><label>Pregunta Secreta</label><input type="text" id="newSecQuestion" placeholder="Ej: ¿Mi mascota?" required></div>
+                <div class="form-field" style="flex:1; min-width:120px;"><label>Respuesta</label><input type="text" id="newSecAnswer" placeholder="Ej: Firulais" required></div>
+
+                <div class="form-field" style="padding-bottom:0.5rem;"><label><input type="checkbox" id="newCanDelete"> Puede borrar</label></div>
+                <button type="submit" class="btn-guardar" style="width:auto; margin:0; padding:0.5rem 1.2rem;">Agregar</button>
+            </form>
+            <table class="users-table">
+                <thead><tr><th>Usuario</th><th>Contraseña</th><th>Pregunta / Respuesta</th><th>Privilegios</th><th>Acciones</th></tr></thead>
+                <tbody id="usersTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Historial de Logs -->
+<div id="logsModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-history"></i> Registro de Auditoría</h3>
+            <span class="close-modal" onclick="document.getElementById('logsModal').style.display='none'">&times;</span>
+        </div>
+        <div style="max-height: 500px; overflow-y: auto;">
+            <table class="users-table">
+                <thead><tr><th>Fecha / Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+                <tbody id="logsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Pestaña -->
+<div id="machineModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="machineModalTitle">Nueva Pestaña</h3>
+            <span class="close-modal" onclick="document.getElementById('machineModal').style.display='none'">&times;</span>
+        </div>
+        <form id="machineForm">
+            <input type="hidden" id="editMachineId">
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Nombre de la Máquina *</label>
+                <input type="text" id="machineName" required placeholder="Ej: Línea 1, Línea 2...">
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Tipo de Máquina</label>
+                <select id="machineType">
+                    <option value="AOI">AOI</option>
+                    <option value="SPI">SPI</option>
+                    <option value="X-ray">X-ray</option>
+                    <option value="CI">CI</option>
+                    <option value="Semiconductor">Semiconductor</option>
+                    <option value="Lead Tab">Lead Tab Inspection</option>
+                    <option value="TPI">TPI</option>
+                    <option value="ATHENA">ATHENA</option>
+                    <option value="MERCURY">MERCURY</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-guardar">Guardar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Entrada Bitácora -->
+<div id="entryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Registro de Bitácora</h3>
+            <span class="close-modal" onclick="document.getElementById('entryModal').style.display='none'">&times;</span>
+        </div>
+        <form id="entryForm">
+            <input type="hidden" id="modalMachineId">
+            <input type="hidden" id="modalEntryId">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Tipo de evento *</label>
+                    <select id="entryType" required onchange="toggleOtroField()">
+                        <option value="falla">🔴 Falla / Error</option>
+                        <option value="mantenimiento">🟡 Mantenimiento</option>
+                        <option value="calibracion">🔵 Calibración</option>
+                        <option value="observacion">⚪ Observación</option>
+                        <option value="otro">🟣 Otro</option>
+                    </select>
+                </div>
+                <div id="entryOtroField" class="form-field dynamic-field" style="grid-column: span 2; display: none;">
+                    <label>Especifique el tipo de evento *</label>
+                    <input type="text" id="entryOtroTexto" placeholder="Ej: Capacitación, Auditoría...">
+                </div>
+                <div class="form-field">
+                    <label>Fecha *</label>
+                    <input type="date" id="entryDate" required>
+                </div>
+                <div class="form-field">
+                    <label>Serial Number</label>
+                    <input type="text" id="entryCode" placeholder="Opcional">
+                </div>
+                <div class="form-field">
+                    <label>Ingeniero</label>
+                    <input type="text" id="entryEngineer">
+                </div>
+                <div class="form-field">
+                    <label>Cliente</label>
+                    <input type="text" id="entryCliente">
+                </div>
+                <div class="form-field">
+                    <label>Ciudad</label>
+                    <input type="text" id="entryCiudad">
+                </div>
+                <div class="form-field">
+                    <label>Estado</label>
+                    <input type="text" id="entryEstado">
+                </div>
+                <div class="form-field full-width">
+                    <label>Descripción *</label>
+                    <textarea id="entryDescription" rows="3" required></textarea>
+                </div>
+                <div class="form-field full-width">
+                    <label>Solución</label>
+                    <textarea id="entrySolution" rows="2"></textarea>
+                </div>
+                <div class="form-field">
+                    <label>Tiempo (horas)</label>
+                    <input type="number" id="entryTime" step="0.5">
+                </div>
+                <div class="form-field">
+                    <label>Estatus</label>
+                    <select id="entryStatus">
+                        <option value="pendiente">⏳ Pendiente</option>
+                        <option value="proceso">🔄 En proceso</option>
+                        <option value="resuelto">✅ Resuelto</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn-guardar" id="btnGuardarEntry">Guardar Registro</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Ver Detalle Registro -->
+<div id="viewEntryModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> Detalle del Registro</h3>
+            <span class="close-modal" onclick="document.getElementById('viewEntryModal').style.display='none'">&times;</span>
+        </div>
+        <div id="viewEntryContent" style="padding: 1rem 0;"></div>
+    </div>
+</div>
+
+<!-- Modal Evento Calendario -->
+<div id="calendarEventModal" class="modal">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3>Agregar evento al calendario</h3>
+            <span class="close-modal" onclick="document.getElementById('calendarEventModal').style.display='none'">&times;</span>
+        </div>
+        <form id="calendarEventForm">
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Fecha del evento *</label>
+                <input type="date" id="calendarEventDate" required>
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Título del evento *</label>
+                <input type="text" id="calendarEventTitle" required>
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Estado / Tipo *</label>
+                <select id="calendarEventStatus" required>
+                    <option value="operando">🟢 Operando normal</option>
+                    <option value="atendiendo">🟡 Atendiendo / En proceso</option>
+                    <option value="critico">🔴 Crítico / Urgente</option>
+                    <option value="falla">🔴 Falla / Error</option>
+                    <option value="observacion">⚪ Observación</option>
+                    <option value="calibracion">🔵 Calibración</option>
+                </select>
+            </div>
+            <div class="form-field full-width" style="margin-bottom:1rem;">
+                <label>Descripción</label>
+                <textarea id="calendarEventDescription" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-guardar">Guardar evento</button>
+        </form>
+    </div>
+</div>
+
+<div id="toast" class="toast-notification">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Listo</span>
+</div>
+
+<script>
+    // ============================================================
+    // CONFIGURACIÓN DE FIREBASE (¡REEMPLAZA ESTOS DATOS CON LOS TUYOS!)
+    // ============================================================
+    const firebaseConfig = {
+  apiKey: "AIzaSyDzeh0ZSGnOFV-94KDUWTF-R6lmW5SEBAo",
+  authDomain: "pemtron-bitacora.firebaseapp.com",
+  databaseURL: "https://pemtron-bitacora-default-rtdb.firebaseio.com",
+  projectId: "pemtron-bitacora",
+  storageBucket: "pemtron-bitacora.firebasestorage.app",
+  messagingSenderId: "30414696195",
+  appId: "1:30414696195:web:7b64de56bd9507cac70336",
+  measurementId: "G-LPT4P7442C"
+};
+
+    // Inicializar Firebase (con manejo de error si no está configurado)
+    let isFirebaseConfigured = false;
+    try {
+        if (firebaseConfig.apiKey !== "TU_API_KEY_AQUI") {
+            firebase.initializeApp(firebaseConfig);
+            isFirebaseConfigured = true;
+        }
+    } catch (e) {
+        console.warn("Firebase no configurado aún:", e);
+    }
+
+    const db = isFirebaseConfigured ? firebase.database() : null;
+
+    // ============================================================
+    // ESTADO GLOBAL Y BASE DE DATOS (FIREBASE)
+    // ============================================================
+    let isAdminSession = false;
+    let currentUser = null;
+
+    let appUsers = [];
+    const DEFAULT_USERS = [{ 
+        username: 'LDA', 
+        password: 'Lunadeavila1294', 
+        isMaster: true, 
+        canDelete: true,
+        securityQuestion: '¿Cuál es el nombre de la empresa?',
+        securityAnswer: 'PEMTRON'
+    }];
+
+    let appData = { machines: [], activeTabId: null };
+    let auditLogs = [];
+    
+    let nextMachineId = 1, nextEntryId = 1;
+    let activeCalendar = null;
+    let activeCharts = { estados: null, tipos: null };
+
+    // Objeto DB adaptado para Firebase
+    const DB = {
+        async get(key) {
+            if (!db) return null;
+            try {
+                const snapshot = await db.ref(key).once('value');
+                return snapshot.val();
+            } catch (e) { console.error("Error leyendo DB:", e); return null; }
+        },
+        async set(key, value) {
+            if (!db) return;
+            try {
+                await db.ref(key).set(value);
+            } catch (e) { console.error("Error guardando DB:", e); }
+        },
+        async update(key, value) {
+            if (!db) return;
+            try {
+                await db.ref(key).update(value);
+            } catch (e) { console.error("Error actualizando DB:", e); }
+        }
+    };
+
+    // ============================================================
+    // UTILIDADES Y SESIÓN
+    // ============================================================
+    function showToast(msg, isErr = false) {
+        const toast = document.getElementById("toast");
+        document.getElementById("toastMessage").innerText = msg;
+        toast.style.background = isErr ? "#dc3545" : "#28a745";
+        toast.style.display = "flex";
+        setTimeout(() => toast.style.display = "none", 3000);
+    }
+
+    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+    function isLoggedIn() { return isAdminSession && currentUser !== null; }
+    function isMaster() { return isLoggedIn() && currentUser.isMaster === true; }
+    function canEdit() { return isLoggedIn(); }
+    function canDelete() { return isLoggedIn() && (currentUser.isMaster === true || currentUser.canDelete === true); }
+
+    async function saveData() {
+        if (!isFirebaseConfigured) {
+            console.log("Simulando guardado (Firebase no configurado)");
+            return;
+        }
+        // Guardamos cada parte en un nodo distinto para evitar colisiones
+        await DB.set("pemtron_multi_data", appData);
+        await DB.set("pemtron_users", appUsers);
+        await DB.set("pemtron_logs", auditLogs);
+    }
+
+    function addLog(action, detail) {
+        const log = {
+            timestamp: new Date().toISOString(),
+            user: currentUser ? currentUser.username : 'Sistema',
+            action: action,
+            detail: detail
+        };
+        auditLogs.unshift(log);
+        if (auditLogs.length > 500) auditLogs.pop();
+        saveData();
+    }
+
+    // ============================================================
+    // LOGIN Y RECUPERACIÓN
+    // ============================================================
+    window.verifyLogin = () => {
+        if (!isFirebaseConfigured) {
+            alert("⚠️ FIREBASE NO CONFIGURADO: Por favor, edita el código y agrega tus credenciales de Firebase en 'firebaseConfig'.");
+            return;
+        }
+        const u = document.getElementById("loginUser").value.trim();
+        const p = document.getElementById("loginPass").value;
+        const found = appUsers.find(x => x.username === u && x.password === p);
+
+        if (found) {
+            isAdminSession = true;
+            currentUser = found;
+            
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("appContainer").style.display = "flex";
+            
+            updateUIForLoggedInUser();
+            
+            addLog("Inicio de Sesión", `El usuario "${found.username}" ingresó al sistema.`);
+            renderTabs();
+            renderActiveTabContent();
+            showToast(`Bienvenido, ${found.username}`);
+        } else {
+            document.getElementById("loginError").style.display = "block";
+        }
+    };
+
+    window.openRecoveryModal = () => {
+        document.getElementById("recoveryModal").style.display = "block";
+        document.getElementById("recoveryStep1").style.display = "block";
+        document.getElementById("recoveryStep2").style.display = "none";
+        document.getElementById("recoveryUser").value = "";
+        document.getElementById("recoveryAnswer").value = "";
+        document.getElementById("recoveryNewPass").value = "";
+    };
+
+    window.loadSecurityQuestion = () => {
+        const u = document.getElementById("recoveryUser").value.trim();
+        const found = appUsers.find(x => x.username === u);
+
+        if (found) {
+            if (found.securityQuestion) {
+                document.getElementById("recoveryQuestionDisplay").value = found.securityQuestion;
+                document.getElementById("recoveryStep1").style.display = "none";
+                document.getElementById("recoveryStep2").style.display = "block";
+            } else {
+                showToast("Este usuario no tiene pregunta de seguridad configurada.", true);
+            }
+        } else {
+            showToast("Usuario no encontrado", true);
+        }
+    };
+
+    window.resetPassword = () => {
+        const u = document.getElementById("recoveryUser").value.trim();
+        const answer = document.getElementById("recoveryAnswer").value.trim();
+        const newPass = document.getElementById("recoveryNewPass").value.trim();
+
+        const found = appUsers.find(x => x.username === u);
+
+        if (!newPass) {
+            showToast("Debes escribir una nueva contraseña", true);
+            return;
+        }
+
+        if (found && found.securityAnswer && found.securityAnswer.toLowerCase() === answer.toLowerCase()) {
+            found.password = newPass;
+            saveData();
+            addLog("Recuperar Contraseña", `El usuario "${u}" restableció su contraseña.`);
+            showToast("Contraseña restablecida con éxito. Ya puedes iniciar sesión.");
+            document.getElementById("recoveryModal").style.display = "none";
+        } else {
+            showToast("Respuesta de seguridad incorrecta", true);
+        }
+    };
+
+    function updateUIForLoggedInUser() {
+        const label = document.getElementById("currentUserLabel");
+        label.style.display = "inline";
+        const role = currentUser.isMaster ? 'MASTER' : (currentUser.canDelete ? 'EDITOR+BORRAR' : 'EDITOR');
+        label.innerHTML = `<i class="fas fa-user-circle"></i> ${currentUser.username} <span style="background:rgba(255,255,255,0.2); padding:0.1rem 0.5rem; border-radius:10px; font-size:0.7rem; margin-left:4px;">${role}</span>`;
+
+        document.getElementById("btnUsers").style.display = currentUser.isMaster ? "inline-flex" : "none";
+        document.getElementById("btnLogs").style.display = currentUser.isMaster ? "inline-flex" : "none";
+        document.getElementById("btnLogout").style.display = "inline-flex";
+        
+        document.getElementById("btnAddTab").style.display = "flex";
+        document.getElementById("btnExportExcelGlobal").style.display = "inline-flex";
+        document.getElementById("btnExportPdfGlobal").style.display = "inline-flex";
+    }
+
+    window.logoutUser = () => {
+        if (isAdminSession && currentUser) {
+            addLog("Cierre de Sesión", `El usuario "${currentUser.username}" cerró sesión.`);
+        }
+        isAdminSession = false;
+        currentUser = null;
+
+        document.getElementById("loginScreen").classList.remove("hidden");
+        document.getElementById("appContainer").style.display = "none";
+        
+        document.getElementById("loginUser").value = "";
+        document.getElementById("loginPass").value = "";
+        document.getElementById("loginError").style.display = "none";
+
+        document.getElementById("btnUsers").style.display = "none";
+        document.getElementById("btnLogs").style.display = "none";
+        document.getElementById("btnLogout").style.display = "none";
+        document.getElementById("btnAddTab").style.display = "none";
+        document.getElementById("btnExportExcelGlobal").style.display = "none";
+        document.getElementById("btnExportPdfGlobal").style.display = "none";
+        document.getElementById("currentUserLabel").style.display = "none";
+        
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+    };
+
+    // ============================================================
+    // GESTIÓN DE USUARIOS
+    // ============================================================
+    window.openUsersModal = () => {
+        if (!isMaster()) {
+            showToast("Solo el usuario Master (LDA) puede gestionar usuarios", true);
+            return;
+        }
+        renderUsersTable();
+        document.getElementById("usersModal").style.display = "block";
+    };
+
+    function renderUsersTable() {
+        const tbody = document.getElementById("usersTableBody");
+        if(!tbody) return;
+        tbody.innerHTML = appUsers.map((u, i) => {
+            let badge = '';
+            if (u.isMaster) badge = '<span class="user-badge badge-master">MASTER</span>';
+            else if (u.canDelete) badge = '<span class="user-badge badge-delete">EDITOR + BORRAR</span>';
+            else badge = '<span class="user-badge badge-read">EDITOR (sin borrar)</span>';
+            
+            return `
+            <tr>
+                <td><strong>${escapeHtml(u.username)}</strong></td>
+                <td>${escapeHtml(u.password)}</td>
+                <td style="font-size:0.75rem; color:#64748b;">P: ${escapeHtml(u.securityQuestion || 'N/A')}<br>R: ${escapeHtml(u.securityAnswer || 'N/A')}</td>
+                <td>${badge}</td>
+                <td>${!u.isMaster ? `
+                    <button onclick="toggleDeletePermission('${escapeHtml(u.username)}')" class="btn-editar-entry" style="margin-right:4px;">
+                        ${u.canDelete ? 'Quitar borrado' : 'Dar borrado'}
+                    </button>
+                    <button onclick="deleteUser('${escapeHtml(u.username)}')" class="btn-eliminar-entry">Eliminar</button>
+                ` : '<span style="color:#94a3b8; font-size:0.75rem;">Usuario principal</span>'}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.toggleDeletePermission = async (username) => {
+        if (!isMaster()) return;
+        const u = appUsers.find(x => x.username === username);
+        if (!u || u.isMaster) return;
+        u.canDelete = !u.canDelete;
+        addLog("Cambio de Permisos", `Se ${u.canDelete ? 'otorgó' : 'revocó'} permiso de borrado al usuario "${username}".`);
+        await saveData();
+        renderUsersTable();
+        showToast(`Permiso de borrado ${u.canDelete ? 'otorgado' : 'revocado'} a ${username}`);
+    };
+
+    window.deleteUser = async (username) => {
+        if (!isMaster()) return;
+        const u = appUsers.find(x => x.username === username);
+        if (!u || u.isMaster) return;
+        if (!confirm(`¿Eliminar al usuario "${username}"?`)) return;
+        addLog("Eliminar Usuario", `Se eliminó al usuario "${username}".`);
+        appUsers = appUsers.filter(x => x.username !== username);
+        await saveData();
+        renderUsersTable();
+        showToast("Usuario eliminado");
+    };
+
+    document.getElementById("addUserForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!isMaster()) {
+            showToast("Solo el Master puede crear usuarios", true);
+            return;
+        }
+        const u = document.getElementById("newUsername").value.trim();
+        const p = document.getElementById("newPassword").value;
+        const q = document.getElementById("newSecQuestion").value.trim();
+        const a = document.getElementById("newSecAnswer").value.trim();
+        const c = document.getElementById("newCanDelete").checked;
+        
+        if (!u || !p || !q || !a) return;
+        if (appUsers.some(x => x.username === u)) { alert("El usuario ya existe"); return; }
+        
+        appUsers.push({ 
+            username: u, 
+            password: p, 
+            isMaster: false, 
+            canDelete: c,
+            securityQuestion: q,
+            securityAnswer: a 
+        });
+        
+        addLog("Crear Usuario", `Se creó el usuario "${u}".`);
+        await saveData();
+        renderUsersTable();
+        e.target.reset();
+        showToast(`Usuario "${u}" creado exitosamente`);
+    });
+
+    // ============================================================
+    // LÓGICA MULTIHOJA (TABS)
+    // ============================================================
+    function renderTabs() {
+        const container = document.getElementById("tabsContainer");
+        const addBtn = document.getElementById("btnAddTab");
+        container.innerHTML = '';
+        
+        if (appData.machines.length === 0) {
+            container.innerHTML = `<div style="padding: 1rem; color: #64748b; font-style: italic;">No hay pestañas creadas.</div>`;
+        } else {
+            appData.machines.forEach(m => {
+                const isActive = m.id === appData.activeTabId;
+                const tab = document.createElement('div');
+                tab.className = `tab ${isActive ? 'active' : ''}`;
+                
+                const displayTitle = `${escapeHtml(m.name)} <span style="font-weight: normal; color: #64748b; font-size: 0.85em;">(${escapeHtml(m.type)})</span>`;
+
+                tab.innerHTML = `
+                    <i class="fas fa-microchip"></i> ${displayTitle}
+                    ${canDelete() ? `<span class="tab-close" onclick="deleteMachine(event, ${m.id})"><i class="fas fa-times"></i></span>` : ''}
+                `;
+                tab.onclick = (e) => {
+                    if (e.target.closest('.tab-close')) return;
+                    switchTab(m.id);
+                };
+                container.appendChild(tab);
+            });
+        }
+        container.appendChild(addBtn);
+    }
+
+    function switchTab(machineId) {
+        appData.activeTabId = machineId;
+        renderTabs();
+        renderActiveTabContent();
+    }
+
+    window.deleteMachine = async (e, id) => {
+        e.stopPropagation();
+        if (!canDelete()) {
+            showToast("No tienes permiso para eliminar", true);
+            return;
+        }
+        
+        if (confirm("¿Eliminar esta pestaña y TODOS sus registros?")) {
+            const m = appData.machines.find(x => x.id === id);
+            addLog("Eliminar Pestaña", `Se eliminó la pestaña "${m.name}" y todos sus registros.`);
+            
+            appData.machines = appData.machines.filter(m => m.id !== id);
+            if (appData.activeTabId === id) {
+                appData.activeTabId = appData.machines.length > 0 ? appData.machines[0].id : null;
+            }
+            await saveData();
+            renderTabs();
+            renderActiveTabContent();
+            showToast("Pestaña eliminada");
+        }
+    };
+
+    window.openAddMachineModal = () => {
+        if (!canEdit()) return;
+        document.getElementById("machineModalTitle").innerText = "Nueva Pestaña";
+        document.getElementById("editMachineId").value = "";
+        document.getElementById("machineName").value = "";
+        document.getElementById("machineType").value = "AOI";
+        document.getElementById("machineModal").style.display = "block";
+    };
+
+    document.getElementById("machineForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canEdit()) return;
+        
+        const id = document.getElementById("editMachineId").value;
+        const name = document.getElementById("machineName").value.trim();
+        const type = document.getElementById("machineType").value;
+
+        if (id) {
+            const m = appData.machines.find(x => x.id === parseInt(id));
+            if (m) {
+                m.name = name; m.type = type;
+                addLog("Editar Pestaña", `Se editó la pestaña "${name}" (${type}).`);
+                await saveData();
+                showToast("Pestaña actualizada");
+            }
+        } else {
+            const newMachine = {
+                id: nextMachineId++,
+                name, type,
+                entries: [],
+                calendarEvents: []
+            };
+            appData.machines.push(newMachine);
+            appData.activeTabId = newMachine.id;
+            addLog("Crear Pestaña", `Se creó la pestaña "${name}" (${type}).`);
+            await saveData();
+            showToast("Pestaña creada");
+        }
+        document.getElementById("machineModal").style.display = "none";
+        renderTabs();
+        renderActiveTabContent();
+    });
+
+    // ============================================================
+    // RENDERIZADO PRINCIPAL DE LA HOJA ACTIVA
+    // ============================================================
+    function renderActiveTabContent() {
+        const mainContent = document.getElementById("mainContent");
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+
+        if (!machine) {
+            mainContent.innerHTML = `<div style="text-align:center; padding: 3rem; color: #64748b;">Selecciona o crea una pestaña para comenzar.</div>`;
+            return;
+        }
+
+        if (activeCharts.estados) activeCharts.estados.destroy();
+        if (activeCharts.tipos) activeCharts.tipos.destroy();
+        activeCalendar = null;
+
+        mainContent.innerHTML = `
+            <div class="dashboard-stats">
+                <div class="stat-card status-pendiente">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-info"><div class="stat-value" id="statPendiente">0</div><div class="stat-label">Pendientes</div></div>
+                </div>
+                <div class="stat-card status-proceso">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-info"><div class="stat-value" id="statProceso">0</div><div class="stat-label">En proceso</div></div>
+                </div>
+                <div class="stat-card status-resuelto">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info"><div class="stat-value" id="statResuelto">0</div><div class="stat-label">Resueltos</div></div>
+                </div>
+                <div class="stat-card status-total">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-info"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total registros</div></div>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-card">
+                    <h4><i class="fas fa-chart-pie"></i> Distribución por estado</h4>
+                    <div class="chart-wrapper"><canvas id="chartEstados"></canvas></div>
+                </div>
+                <div class="chart-card full-width">
+                    <h4><i class="fas fa-chart-bar"></i> Registros por tipo de evento</h4>
+                    <div class="chart-wrapper"><canvas id="chartTipos"></canvas></div>
+                </div>
+            </div>
+
+            <div class="main-layout">
+                <div class="calendar-sidebar">
+                    <div class="calendar-title">
+                        <span><i class="fas fa-calendar-alt"></i> Calendario</span>
+                        ${canEdit() ? `<button class="btn-add-calendar-event" onclick="openCalendarModal()"><i class="fas fa-plus"></i> Evento</button>` : ''}
+                    </div>
+                    <div id="calendar"></div>
+                    <div class="legend">
+                        <div class="legend-item"><div class="legend-color" style="background:#dc3545;"></div><span>Falla</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#ffc107;"></div><span>Mantenimiento</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#17a2b8;"></div><span>Calibración</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background:#6c757d;"></div><span>Observación</span></div>
+                    </div>
+                </div>
+
+                <div class="content-main">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchSerial" placeholder="Buscar Serial..." oninput="renderTableAndHistory()">
+                        <input type="text" id="searchEngineer" placeholder="Ingeniero..." oninput="renderTableAndHistory()">
+                        <input type="text" id="searchCliente" placeholder="Cliente..." oninput="renderTableAndHistory()">
+                        <input type="text" id="searchCiudad" placeholder="Ciudad..." oninput="renderTableAndHistory()">
+                        <button class="btn-search" onclick="renderTableAndHistory()">Buscar</button>
+                        <button class="btn-secondary" onclick="clearSearch()">Limpiar</button>
+                        <button class="btn-refresh" onclick="refreshData()" title="Refrescar datos"><i class="fas fa-sync-alt"></i> Refrescar</button>
+                        
+                        <!-- BOTÓN DESPLEGABLE DE EXPORTAR FILTRADO -->
+                        <div class="dropdown-export">
+                            <button class="btn-dropdown"><i class="fas fa-file-export"></i> Exportar Filtrado <i class="fas fa-caret-down"></i></button>
+                            <div class="dropdown-content">
+                                <a onclick="exportFiltered('excel')"><i class="fas fa-file-excel" style="color:#1e7e34;"></i> Descargar Excel</a>
+                                <a onclick="exportFiltered('pdf')"><i class="fas fa-file-pdf" style="color:#dc3545;"></i> Descargar PDF</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="machine-card">
+                        <div class="machine-header">
+                            <div><i class="fas fa-industry"></i> <strong>${escapeHtml(machine.name)}</strong> (${escapeHtml(machine.type)})</div>
+                            ${canEdit() ? `
+                            <div class="machine-actions">
+                                <button class="btn-export btn-excel" onclick="exportExcelIndividual()" style="background:#1e7e34; font-size:0.75rem; padding: 0.3rem 0.8rem;"><i class="fas fa-file-excel"></i> Excel</button>
+                                <button class="btn-export btn-pdf" onclick="exportPDFIndividual()" style="background:#dc3545; font-size:0.75rem; padding: 0.3rem 0.8rem;"><i class="fas fa-file-pdf"></i> PDF</button>
+                                <button class="btn-edit-machine" onclick="editCurrentMachine()"><i class="fas fa-edit"></i> Editar</button>
+                                ${canDelete() ? `<button class="btn-delete-machine" onclick="deleteCurrentMachine()"><i class="fas fa-trash"></i> Eliminar</button>` : ''}
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div id="serialHistoryContainer"></div>
+
+                        <div style="overflow-x:auto; border-top:1px solid #e2e8f0;">
+                            <table class="entries-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th><th>Tipo</th><th>Serial</th><th>Cliente</th><th>Ingeniero</th><th>Estatus</th><th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody"></tbody>
+                            </table>
+                        </div>
+                        ${canEdit() ? `<button class="btn-agregar-entry" onclick="openEntryModal()"><i class="fas fa-plus"></i> Agregar Nuevo Registro</button>` : `<div style="text-align:center; padding:1rem; color:#94a3b8; font-size:0.85rem;"><i class="fas fa-lock"></i> Inicia sesión para modificar</div>`}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        initCalendar(machine);
+        updateDashboardAndCharts(machine);
+        renderTableAndHistory();
+    }
+
+    window.deleteCurrentMachine = () => {
+        if (!canDelete()) return;
+        const id = appData.activeTabId;
+        if (confirm("¿Eliminar esta pestaña y TODOS sus registros?")) {
+            const m = appData.machines.find(x => x.id === id);
+            addLog("Eliminar Pestaña", `Se eliminó la pestaña "${m.name}".`);
+            
+            appData.machines = appData.machines.filter(m => m.id !== id);
+            appData.activeTabId = appData.machines.length > 0 ? appData.machines[0].id : null;
+            saveData();
+            renderTabs();
+            renderActiveTabContent();
+            showToast("Pestaña eliminada");
+        }
+    };
+
+    window.editCurrentMachine = () => {
+        if (!canEdit()) return;
+        const m = appData.machines.find(x => x.id === appData.activeTabId);
+        if (!m) return;
+        document.getElementById("machineModalTitle").innerText = "Editar Pestaña";
+        document.getElementById("editMachineId").value = m.id;
+        document.getElementById("machineName").value = m.name;
+        document.getElementById("machineType").value = m.type;
+        document.getElementById("machineModal").style.display = "block";
+    };
+
+    window.refreshData = async () => {
+        if (!isFirebaseConfigured) return;
+        // En Firebase, la actualización es automática, pero forzamos un re-render por si acaso
+        renderTabs();
+        renderActiveTabContent();
+        showToast("Datos sincronizados");
+    };
+
+    // ============================================================
+    // DASHBOARD Y GRÁFICAS
+    // ============================================================
+    function updateDashboardAndCharts(machine) {
+        let pendiente = 0, proceso = 0, resuelto = 0, total = 0;
+        const typeCounts = { falla: 0, mantenimiento: 0, calibracion: 0, observacion: 0, otro: 0 };
+
+        machine.entries.forEach(e => {
+            total++;
+            if (e.status === 'pendiente') pendiente++;
+            else if (e.status === 'proceso') proceso++;
+            else if (e.status === 'resuelto') resuelto++;
+            
+            typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+        });
+
+        document.getElementById('statPendiente').textContent = pendiente;
+        document.getElementById('statProceso').textContent = proceso;
+        document.getElementById('statResuelto').textContent = resuelto;
+        document.getElementById('statTotal').textContent = total;
+
+        const ctxEstados = document.getElementById('chartEstados');
+        activeCharts.estados = new Chart(ctxEstados, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pendientes', 'En proceso', 'Resueltos'],
+                datasets: [{
+                    data: [pendiente, proceso, resuelto],
+                    backgroundColor: ['#ff9800', '#2196f3', '#4caf50'],
+                    borderWidth: 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+        });
+
+        const ctxTipos = document.getElementById('chartTipos');
+        activeCharts.tipos = new Chart(ctxTipos, {
+            type: 'bar',
+            data: {
+                labels: ['Falla', 'Mantenimiento', 'Calibración', 'Observación', 'Otro'],
+                datasets: [{
+                    label: 'Registros',
+                    data: [typeCounts.falla, typeCounts.mantenimiento, typeCounts.calibracion, typeCounts.observacion, typeCounts.otro],
+                    backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#6c757d', '#6610f2'],
+                    borderRadius: 6
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } } } }
+        });
+    }
+
+    // ============================================================
+    // CALENDARIO
+    // ============================================================
+    function initCalendar(machine) {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        activeCalendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'es',
+            headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+            height: 'auto',
+            events: [
+                ...(machine.calendarEvents || []).map(ev => ({
+                    id: `manual_${ev.id}`,
+                    title: ev.title,
+                    start: ev.date,
+                    backgroundColor: getStatusColor(ev.status),
+                    extendedProps: { type: 'manual', ...ev }
+                })),
+                ...machine.entries.map(e => ({
+                    id: `bitacora_${e.id}`,
+                    title: `${e.type === 'otro' ? (e.otroTexto || 'OTRO') : e.type.toUpperCase()} - ${e.code || 'S/N'}`,
+                    start: e.date,
+                    backgroundColor: getStatusColor(e.type === 'falla' ? 'falla' : (e.type === 'mantenimiento' ? 'atendiendo' : e.type)),
+                    extendedProps: { type: 'bitacora', ...e }
+                }))
+            ],
+            eventClick: function(info) {
+                const props = info.event.extendedProps;
+                if (props.type === 'manual') {
+                    const msg = `Evento: ${props.title}\nFecha: ${info.event.start.toLocaleDateString()}`;
+                    if (canDelete() && confirm(`${msg}\n\n¿Eliminar evento?`)) {
+                        addLog("Eliminar Evento", `Se eliminó el evento manual "${props.title}".`);
+                        machine.calendarEvents = machine.calendarEvents.filter(ev => ev.id !== props.id);
+                        saveData();
+                        info.event.remove();
+                    } else if (!canDelete()) {
+                        alert(msg);
+                    }
+                } else {
+                    window.viewEntry(props.id);
+                }
+            }
+        });
+        activeCalendar.render();
+    }
+
+    window.openCalendarModal = () => {
+        if (!canEdit()) return;
+        document.getElementById("calendarEventForm").reset();
+        document.getElementById("calendarEventDate").value = new Date().toISOString().slice(0,10);
+        document.getElementById("calendarEventModal").style.display = "block";
+    };
+
+    document.getElementById("calendarEventForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!canEdit()) return;
+        
+        const m = appData.machines.find(x => x.id === appData.activeTabId);
+        if (!m) return;
+
+        const title = document.getElementById("calendarEventTitle").value;
+        const newEvent = {
+            id: Date.now(),
+            date: document.getElementById("calendarEventDate").value,
+            title: title,
+            status: document.getElementById("calendarEventStatus").value,
+            description: document.getElementById("calendarEventDescription").value
+        };
+
+        if (!m.calendarEvents) m.calendarEvents = [];
+        m.calendarEvents.push(newEvent);
+        addLog("Crear Evento", `Se agregó el evento "${title}" al calendario.`);
+        await saveData();
+        
+        document.getElementById("calendarEventModal").style.display = "none";
+        showToast("Evento agregado");
+        renderActiveTabContent(); 
+    });
+
+    function getStatusColor(status) {
+        switch(status) {
+            case 'falla': case 'critico': return '#dc3545';
+            case 'atendiendo': case 'mantenimiento': return '#ffc107';
+            case 'operando': case 'resuelto': return '#28a745';
+            case 'calibracion': return '#17a2b8';
+            case 'observacion': return '#6c757d';
+            default: return '#1a4a6f';
+        }
+    }
+
+    // ============================================================
+    // TABLA Y DIAGRAMA
+    // ============================================================
+    window.renderTableAndHistory = () => {
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        if (!machine) return;
+
+        const fSerial = document.getElementById("searchSerial")?.value.toLowerCase() || "";
+        const fEngineer = document.getElementById("searchEngineer")?.value.toLowerCase() || "";
+        const fCliente = document.getElementById("searchCliente")?.value.toLowerCase() || "";
+        const fCiudad = document.getElementById("searchCiudad")?.value.toLowerCase() || "";
+
+        const filteredEntries = machine.entries.filter(e => {
+            const serialStr = (e.code || 'SIN SERIAL').toLowerCase();
+            const engStr = (e.engineer || '').toLowerCase();
+            const cliStr = (e.cliente || '').toLowerCase();
+            const ciuStr = (e.ciudad || '').toLowerCase();
+            
+            return serialStr.includes(fSerial) && engStr.includes(fEngineer) && cliStr.includes(fCliente) && ciuStr.includes(fCiudad);
+        }).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        const tbody = document.getElementById("tableBody");
+        if (filteredEntries.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8;">No hay registros</td></tr>`;
+        } else {
+            tbody.innerHTML = filteredEntries.map(e => {
+                const serialStr = e.code || 'SIN SERIAL';
+                const displayType = e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type;
+                const statusTxt = e.status === 'resuelto' ? '✅ Resuelto' : (e.status === 'proceso' ? '🔄 En proceso' : '⏳ Pendiente');
+                return `
+                <tr>
+                    <td>${e.date}</td>
+                    <td><span class="entry-type-badge type-${e.type}">${displayType}</span></td>
+                    <td>${serialStr}</td>
+                    <td>${e.cliente || '-'}</td>
+                    <td>${e.engineer || '-'}</td>
+                    <td>${statusTxt}</td>
+                    <td class="action-buttons">
+                        <button class="btn-ver" onclick="viewEntry(${e.id})">Ver</button>
+                        ${canEdit() ? `
+                            <button class="btn-editar-entry" onclick="editEntry(${e.id})">Editar</button>
+                        ` : ''}
+                        ${canDelete() ? `
+                            <button class="btn-eliminar-entry" onclick="deleteEntry(${e.id})">Eliminar</button>
+                        ` : ''}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        const historyContainer = document.getElementById("serialHistoryContainer");
+        const grouped = {};
+        filteredEntries.forEach(e => {
+            const s = e.code || 'SIN SERIAL';
+            if (!grouped[s]) grouped[s] = [];
+            grouped[s].push(e);
+        });
+
+        if (Object.keys(grouped).length === 0) {
+            historyContainer.innerHTML = '';
+            return;
+        }
+
+        let histHtml = '';
+        for (const [serial, entries] of Object.entries(grouped)) {
+            const sorted = [...entries].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            histHtml += `
+            <div style="border-bottom: 1px solid #e2e8f0; padding: 1rem;">
+                <div style="font-weight: bold; color: #1a4a6f; margin-bottom: 1rem;"><i class="fas fa-barcode"></i> Serial: ${serial} (${entries.length} registros)</div>
+                <div class="serial-detail-layout">
+                    <div>
+                        <div style="font-size: 0.7rem; font-weight: bold; color: #64748b; margin-bottom: 0.5rem;">DETALLE CRONOLÓGICO</div>
+                        <div class="serial-timeline-container">
+                            <div class="serial-timeline">
+                                ${sorted.map(e => `
+                                    <div class="timeline-item">
+                                        <div class="timeline-dot" style="background: ${getStatusColor(e.status)};"></div>
+                                        <div style="font-size: 0.75rem; font-weight: 600; color: #1a4a6f;">${e.date}</div>
+                                        <div style="font-size: 0.75rem; color: #333;">${e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type.toUpperCase()}: ${e.description.substring(0, 50)}...</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flowchart-container">
+                            ${buildFlowchartHTML(sorted)}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        historyContainer.innerHTML = histHtml;
+    };
+
+    function buildFlowchartHTML(sortedEntries) {
+        let html = `<div class="flowchart-flow"><div class="flow-shape shape-oval">INICIO</div>`;
+        sortedEntries.forEach(e => {
+            const typeDisplay = e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type;
+            html += `<div class="flow-connector"></div>`;
+            html += `<div class="flow-shape shape-process"><div style="font-weight:bold;">${e.date}</div><div>${escapeHtml(typeDisplay)}</div></div>`;
+            html += `<div class="flow-connector"></div>`;
+            html += `<div class="flow-shape shape-decision"><span>¿Resuelto?<br>${e.status === 'resuelto' ? 'SÍ' : 'NO'}</span></div>`;
+        });
+        html += `<div class="flow-connector"></div><div class="flow-shape shape-oval">FIN</div></div>`;
+        return html;
+    }
+
+    window.clearSearch = () => {
+        document.getElementById("searchSerial").value = "";
+        document.getElementById("searchEngineer").value = "";
+        document.getElementById("searchCliente").value = "";
+        document.getElementById("searchCiudad").value = "";
+        renderTableAndHistory();
+    };
+
+    // ============================================================
+    // CRUD ENTRADAS
+    // ============================================================
+    window.toggleOtroField = () => {
+        const isOtro = document.getElementById("entryType").value === "otro";
+        const field = document.getElementById("entryOtroField");
+        field.style.display = isOtro ? "block" : "none";
+        document.getElementById("entryOtroTexto").required = isOtro;
+    };
+
+    window.openEntryModal = () => {
+        if (!canEdit()) return;
+        document.getElementById("entryForm").reset();
+        document.getElementById("modalEntryId").value = "";
+        document.getElementById("entryDate").value = new Date().toISOString().slice(0,10);
+        document.getElementById("btnGuardarEntry").innerText = "Guardar Registro";
+        toggleOtroField();
+        document.getElementById("entryModal").style.display = "block";
+    };
+
+    window.editEntry = (entryId) => {
+        if (!canEdit()) return;
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        const e = machine.entries.find(x => x.id === entryId);
+        if (!e) return;
+
+        document.getElementById("modalEntryId").value = e.id;
+        document.getElementById("entryType").value = e.type;
+        
+        if (e.type === 'otro') {
+            document.getElementById("entryOtroTexto").value = e.otroTexto || "";
+        }
+        toggleOtroField();
+
+        document.getElementById("entryDate").value = e.date;
+        document.getElementById("entryCode").value = e.code || "";
+        document.getElementById("entryEngineer").value = e.engineer || "";
+        document.getElementById("entryCliente").value = e.cliente || "";
+        document.getElementById("entryCiudad").value = e.ciudad || "";
+        document.getElementById("entryEstado").value = e.estado || "";
+        document.getElementById("entryDescription").value = e.description || "";
+        document.getElementById("entrySolution").value = e.solution || "";
+        document.getElementById("entryTime").value = e.time || "";
+        document.getElementById("entryStatus").value = e.status || "pendiente";
+
+        document.getElementById("btnGuardarEntry").innerText = "Actualizar Registro";
+        document.getElementById("entryModal").style.display = "block";
+    };
+
+    window.deleteEntry = async (entryId) => {
+        if (!canDelete()) {
+            showToast("No tienes permiso para eliminar registros", true);
+            return;
+        }
+        if (!confirm("¿Eliminar este registro?")) return;
+        
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        const e = machine.entries.find(x => x.id === entryId);
+        addLog("Eliminar Registro", `Se eliminó el registro del serial ${e.code || 'S/N'} (${e.date}).`);
+        
+        machine.entries = machine.entries.filter(e => e.id !== entryId);
+        await saveData();
+        renderActiveTabContent();
+        showToast("Registro eliminado");
+    };
+
+    window.viewEntry = (entryId) => {
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        const e = machine.entries.find(x => x.id === entryId);
+        if (!e) return;
+        
+        const displayType = e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type;
+        const statusTxt = e.status === 'resuelto' ? '✅ Resuelto' : (e.status === 'proceso' ? '🔄 En proceso' : '⏳ Pendiente');
+        
+        document.getElementById("viewEntryContent").innerHTML = `
+            <div class="detail-row"><div class="detail-label">Serial:</div><div class="detail-value">${escapeHtml(e.code || 'S/N')}</div></div>
+            <div class="detail-row"><div class="detail-label">Fecha:</div><div class="detail-value">${escapeHtml(e.date)}</div></div>
+            <div class="detail-row"><div class="detail-label">Tipo:</div><div class="detail-value"><span class="entry-type-badge type-${e.type}">${escapeHtml(displayType)}</span></div></div>
+            <div class="detail-row"><div class="detail-label">Estatus:</div><div class="detail-value">${statusTxt}</div></div>
+            <div class="detail-row"><div class="detail-label">Ingeniero:</div><div class="detail-value">${escapeHtml(e.engineer || 'N/A')}</div></div>
+            <div class="detail-row"><div class="detail-label">Cliente:</div><div class="detail-value">${escapeHtml(e.cliente || 'N/A')}</div></div>
+            <div class="detail-row"><div class="detail-label">Ubicación:</div><div class="detail-value">${escapeHtml(e.ciudad || 'N/A')}, ${escapeHtml(e.estado || 'N/A')}</div></div>
+            <div class="detail-row"><div class="detail-label">Tiempo:</div><div class="detail-value">${e.time ? e.time + ' horas' : 'N/A'}</div></div>
+            <div class="detail-row"><div class="detail-label">Descripción:</div><div class="detail-value">${escapeHtml(e.description)}</div></div>
+            <div class="detail-row" style="border:none;"><div class="detail-label">Solución:</div><div class="detail-value" style="color:#28a745;">${escapeHtml(e.solution || 'No especificada')}</div></div>
+        `;
+        
+        document.getElementById("viewEntryModal").style.display = "block";
+    };
+
+    document.getElementById("entryForm").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        if (!canEdit()) return;
+        
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        if (!machine) return;
+
+        const id = document.getElementById("modalEntryId").value;
+        const entryType = document.getElementById("entryType").value;
+        let otroTexto = "";
+        
+        if (entryType === "otro") {
+            otroTexto = document.getElementById("entryOtroTexto").value.trim();
+            if (!otroTexto) {
+                alert("Por favor, especifique el tipo de evento.");
+                return;
+            }
+        }
+
+        const entryData = {
+            id: id ? parseInt(id) : Date.now(),
+            type: entryType,
+            otroTexto: otroTexto,
+            date: document.getElementById("entryDate").value,
+            code: document.getElementById("entryCode").value.trim(),
+            engineer: document.getElementById("entryEngineer").value.trim(),
+            cliente: document.getElementById("entryCliente").value.trim(),
+            ciudad: document.getElementById("entryCiudad").value.trim(),
+            estado: document.getElementById("entryEstado").value.trim(),
+            description: document.getElementById("entryDescription").value,
+            solution: document.getElementById("entrySolution").value,
+            time: parseFloat(document.getElementById("entryTime").value) || null,
+            status: document.getElementById("entryStatus").value
+        };
+
+        if (id) {
+            const idx = machine.entries.findIndex(x => x.id === parseInt(id));
+            if (idx !== -1) machine.entries[idx] = entryData;
+            addLog("Editar Registro", `Se actualizó el registro del serial ${entryData.code || 'S/N'} (${entryData.date}).`);
+        } else {
+            machine.entries.push(entryData);
+            addLog("Crear Registro", `Se agregó un nuevo registro al serial ${entryData.code || 'S/N'} (${entryData.date}).`);
+        }
+
+        await saveData();
+        document.getElementById("entryModal").style.display = "none";
+        renderActiveTabContent(); 
+        showToast(id ? "Registro actualizado" : "Registro guardado");
+    });
+
+    // ============================================================
+    // HISTORIAL DE LOGS (SOLO MASTER)
+    // ============================================================
+    window.openLogsModal = () => {
+        if (!isMaster()) {
+            showToast("Solo el Master puede ver el historial", true);
+            return;
+        }
+        const tbody = document.getElementById("logsTableBody");
+        tbody.innerHTML = auditLogs.map(l => {
+            const d = new Date(l.timestamp);
+            const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+            return `
+            <tr>
+                <td style="font-size:0.8rem; white-space:nowrap;">${dateStr}</td>
+                <td><strong>${escapeHtml(l.user)}</strong></td>
+                <td>${escapeHtml(l.action)}</td>
+                <td style="font-size:0.85rem; color:#64748b;">${escapeHtml(l.detail)}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById("logsModal").style.display = "block";
+    };
+
+    // ============================================================
+    // GENERADOR DE EXCEL
+    // ============================================================
+    function generateExcelHTML(machinesToExport) {
+        const allRows = [];
+        let totalHoras = 0;
+
+        machinesToExport.forEach(m => {
+            m.entries.forEach(e => {
+                const displayType = e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type;
+                allRows.push([
+                    m.name, m.type, e.code || '', e.date, displayType, e.cliente || '', e.ciudad || '', e.estado || '', e.description || '', e.solution || '', e.engineer || '', e.time || '', e.status || ''
+                ]);
+                if (e.time) totalHoras += parseFloat(e.time) || 0;
+            });
+        });
+
+        if (allRows.length === 0) return { html: null, count: 0, totalHoras: 0 };
+
+        const headers = ["Máquina","Tipo Máquina","Serial Number","Fecha","Tipo Evento","Cliente","Ciudad","Estado","Descripción","Solución","Ingeniero","Tiempo(hrs)","Estatus"];
+        
+        let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
+        html += '<table border="1" style="border-collapse: collapse; text-align: left; font-family: sans-serif;">';
+        
+        html += '<tr>';
+        headers.forEach(h => { html += `<th style="background-color: #f2f2f2; padding: 8px; font-weight: bold;">${h}</th>`; });
+        html += '</tr>';
+
+        allRows.forEach(row => {
+            html += '<tr>';
+            row.forEach(cell => {
+                const cleanCell = String(cell || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                html += `<td style="padding: 5px; mso-number-format:'\\@';">${cleanCell}</td>`;
+            });
+            html += '</tr>';
+        });
+
+        html += `<tr style="font-weight: bold; background-color: #ffeb3b; font-size: 14px;">
+                    <td colspan="11" style="text-align: right; padding: 8px;">TOTAL HORAS:</td>
+                    <td style="padding: 8px;">${totalHoras.toFixed(1)}</td>
+                    <td></td>
+                 </tr>`;
+        html += '</table></body></html>';
+
+        return { html, count: allRows.length, totalHoras };
+    }
+
+    window.exportExcelIndividual = () => {
+        if (!isLoggedIn()) return;
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        if (!machine || machine.entries.length === 0) {
+            showToast("No hay datos para exportar en esta pestaña", true);
+            return;
+        }
+
+        const { html, count, totalHoras } = generateExcelHTML([machine]);
+        const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Bitacora_${machine.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xls`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        
+        addLog("Exportar Excel Individual", `Se descargó el Excel de la pestaña "${machine.name}".`);
+        showToast(`✓ Excel exportado (${count} registros)`);
+    };
+
+    window.exportExcelGlobal = () => {
+        if (!isLoggedIn()) return;
+        if (appData.machines.length === 0) {
+            showToast("No hay datos para exportar", true);
+            return;
+        }
+
+        const { html, count, totalHoras } = generateExcelHTML(appData.machines);
+        const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Bitacora_Global_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xls`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        
+        addLog("Exportar Excel Global", `Se descargó la base de datos global en formato Excel.`);
+        showToast(`✓ Excel Global exportado (${count} registros, ${totalHoras.toFixed(1)} hrs)`);
+    };
+
+    // ============================================================
+    // EXPORTAR SOLO LO FILTRADO
+    // ============================================================
+    window.exportFiltered = (format) => {
+        if (!isLoggedIn()) return;
+
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        if (!machine) return;
+
+        const fSerial = document.getElementById("searchSerial")?.value.toLowerCase() || "";
+        const fEngineer = document.getElementById("searchEngineer")?.value.toLowerCase() || "";
+        const fCliente = document.getElementById("searchCliente")?.value.toLowerCase() || "";
+        const fCiudad = document.getElementById("searchCiudad")?.value.toLowerCase() || "";
+
+        const filteredEntries = machine.entries.filter(e => {
+            const serialStr = (e.code || 'SIN SERIAL').toLowerCase();
+            const engStr = (e.engineer || '').toLowerCase();
+            const cliStr = (e.cliente || '').toLowerCase();
+            const ciuStr = (e.ciudad || '').toLowerCase();
+            
+            return serialStr.includes(fSerial) && engStr.includes(fEngineer) && cliStr.includes(fCliente) && ciuStr.includes(fCiudad);
+        }).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        if (filteredEntries.length === 0) {
+            showToast("No hay registros para exportar con los filtros actuales", true);
+            return;
+        }
+
+        const machineCopy = {
+            ...machine,
+            entries: filteredEntries
+        };
+
+        if (format === 'excel') {
+            const { html, count, totalHoras } = generateExcelHTML([machineCopy]);
+            if (!html) {
+                showToast("No hay datos para exportar", true);
+                return;
+            }
+            const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Bitacora_${machine.name.replace(/\s+/g, '_')}_Filtrado_${new Date().toISOString().slice(0,10)}.xls`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            
+            addLog("Exportar Excel Filtrado", `Se exportaron ${count} registros filtrados de la pestaña "${machine.name}".`);
+            showToast(`✓ Excel descargado (${count} registros)`);
+        } else if (format === 'pdf') {
+            generatePDFForMachines([machineCopy], `Bitacora_${machine.name.replace(/\s+/g, '_')}_Filtrado_${new Date().toISOString().slice(0,10)}.pdf`);
+            addLog("Exportar PDF Filtrado", `Se exportaron ${filteredEntries.length} registros filtrados de la pestaña "${machine.name}".`);
+            showToast(`✓ PDF descargado (${filteredEntries.length} registros)`);
+        }
+    };
+
+    // ============================================================
+    // GENERADOR DE PDF
+    // ============================================================
+    function drawFlowchartPDF(doc, sortedEntries, startY) {
+        let currentY = startY;
+        const centerX = 60;
+        
+        const drawArrow = (x1, y1, x2, y2) => {
+            doc.setDrawColor(50, 50, 50);
+            doc.setLineWidth(0.5);
+            doc.line(x1, y1, x2, y2);
+            doc.setFillColor(50, 50, 50);
+            doc.triangle(x2, y2, x2 - 1.5, y2 - 1.5, x2 + 1.5, y2 - 1.5, 'F');
+        };
+
+        const drawCenteredText = (text, x, y) => {
+            doc.setFontSize(8);
+            const textWidth = doc.getTextWidth(text);
+            doc.text(text, x - (textWidth / 2), y);
+        };
+
+        doc.setFillColor(33, 150, 243);
+        doc.ellipse(centerX, currentY, 15, 6, 'F');
+        doc.setTextColor(255, 255, 255);
+        drawCenteredText("INICIO", centerX, currentY + 2);
+        currentY += 10;
+
+        sortedEntries.forEach((entry) => {
+            drawArrow(centerX, currentY, centerX, currentY + 6);
+            currentY += 6;
+
+            doc.setFillColor(76, 175, 80);
+            doc.rect(centerX - 25, currentY, 50, 12, 'F');
+            doc.setTextColor(255, 255, 255);
+            drawCenteredText(entry.date, centerX, currentY + 5);
+            const typeText = entry.type === 'otro' ? (entry.otroTexto || 'Otro') : entry.type;
+            drawCenteredText(typeText, centerX, currentY + 9);
+            currentY += 12;
+
+            drawArrow(centerX, currentY, centerX, currentY + 6);
+            currentY += 6;
+
+            doc.setFillColor(255, 193, 7);
+            const r = 10;
+            doc.triangle(centerX, currentY, centerX - r, currentY + r, centerX + r, currentY + r, 'F');
+            doc.triangle(centerX, currentY + r*2, centerX - r, currentY + r, centerX + r, currentY + r, 'F');
+            
+            doc.setTextColor(50, 50, 50);
+            drawCenteredText("¿Resuelto?", centerX, currentY + 8);
+            drawCenteredText(entry.status === 'resuelto' ? 'SÍ' : 'NO', centerX, currentY + 12);
+            currentY += 22;
+
+            if (currentY > 180) {
+                doc.addPage();
+                currentY = 20;
+            }
+        });
+
+        drawArrow(centerX, currentY, centerX, currentY + 6);
+        currentY += 6;
+
+        doc.setFillColor(33, 150, 243);
+        doc.ellipse(centerX, currentY, 15, 6, 'F');
+        doc.setTextColor(255, 255, 255);
+        drawCenteredText("FIN", centerX, currentY + 2);
+    }
+
+    function generatePDFForMachines(machinesToExport, filename) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm' });
+        let isFirstPage = true;
+
+        machinesToExport.forEach((machine) => {
+            if (machine.entries.length === 0) return;
+
+            if (!isFirstPage) doc.addPage();
+            isFirstPage = false;
+            
+            doc.setFontSize(16);
+            doc.setTextColor(26, 74, 111);
+            doc.text(`PEMTRON - Reporte de Máquina`, 14, 15);
+            
+            doc.setFontSize(12);
+            doc.text(`Hoja: ${machine.name} | Tipo: ${machine.type}`, 14, 22);
+
+            const rows = machine.entries.map(e => {
+                const typeDisplay = e.type === 'otro' ? (e.otroTexto || 'Otro') : e.type;
+                return [
+                    e.date, typeDisplay, e.code || 'S/N', e.engineer || '-', e.status, e.description.substring(0, 30)
+                ];
+            });
+
+            doc.autoTable({
+                head: [["Fecha", "Tipo", "Serial", "Ingeniero", "Estatus", "Descripción"]],
+                body: rows,
+                startY: 30,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [26, 74, 111] }
+            });
+
+            const allEntries = [...machine.entries];
+            const groupedBySerial = {};
+            for (const entry of allEntries) {
+                const serial = entry.code || 'SIN SERIAL';
+                if (!groupedBySerial[serial]) groupedBySerial[serial] = [];
+                groupedBySerial[serial].push(entry);
+            }
+
+            const serialGroups = Object.entries(groupedBySerial).filter(([serial, entries]) => entries.length > 0);
+
+            for (const [serial, entries] of serialGroups) {
+                doc.addPage();
+                const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                doc.setFontSize(14);
+                doc.setTextColor(26, 74, 111);
+                doc.text(`${machine.name} - Serial Number: ${serial}`, 14, 20);
+
+                drawFlowchartPDF(doc, sortedEntries, 35);
+
+                const detailStartX = 120;
+                let detailY = 35;
+                
+                doc.setFontSize(12);
+                doc.setTextColor(26, 74, 111);
+                doc.text("Detalle Cronológico:", detailStartX, detailY);
+                detailY += 8;
+
+                doc.setFontSize(8);
+                doc.setTextColor(0, 0, 0);
+
+                sortedEntries.forEach((entry) => {
+                    if (detailY > 190) {
+                        doc.addPage();
+                        detailY = 20;
+                    }
+                    const displayType = entry.type === 'otro' ? (entry.otroTexto || 'Otro') : entry.type;
+                    const statusText = entry.status === 'resuelto' ? 'Resuelto' : (entry.status === 'proceso' ? 'En proceso' : 'Pendiente');
+                    
+                    doc.setFont("helvetica", "bold");
+                    doc.text(`${entry.date} - [${displayType}]`, detailStartX, detailY);
+                    detailY += 4;
+                    
+                    doc.setFont("helvetica", "normal");
+                    const descLines = doc.splitTextToSize(entry.description, 60);
+                    descLines.forEach(line => {
+                        doc.text(line, detailStartX, detailY);
+                        detailY += 4;
+                    });
+                    
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`Ing. ${entry.engineer || 'N/A'} | Estatus: ${statusText}`, detailStartX, detailY);
+                    doc.setTextColor(0, 0, 0);
+                    detailY += 8;
+                });
+            }
+        });
+
+        doc.save(filename);
+    }
+
+    window.exportPDFIndividual = () => {
+        if (!isLoggedIn()) return;
+        const machine = appData.machines.find(m => m.id === appData.activeTabId);
+        if (!machine || machine.entries.length === 0) {
+            showToast("No hay datos para exportar en esta pestaña", true);
+            return;
+        }
+
+        generatePDFForMachines([machine], `Bitacora_${machine.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+        addLog("Exportar PDF Individual", `Se descargó el PDF de la pestaña "${machine.name}".`);
+        showToast("PDF exportado con tablas y diagramas");
+    };
+
+    window.exportPDFGlobal = () => {
+        if (!isLoggedIn()) return;
+        if (appData.machines.length === 0) {
+            showToast("No hay datos para exportar", true);
+            return;
+        }
+
+        generatePDFForMachines(appData.machines, `Bitacora_Global_${new Date().toISOString().slice(0,10)}.pdf`);
+        addLog("Exportar PDF Global", `Se descargó el PDF global con todas las pestañas.`);
+        showToast("PDF Global exportado con todas las hojas y diagramas");
+    };
+
+    // ============================================================
+    // INICIALIZACIÓN Y ESCUCHA EN TIEMPO REAL DE FIREBASE
+    // ============================================================
+    (async function boot() {
+        if (!isFirebaseConfigured) {
+            document.getElementById("loginError").innerHTML = "⚠️ Firebase no configurado. Edita el código.";
+            document.getElementById("loginError").style.display = "block";
+            return;
+        }
+
+        // 1. Escuchar cambios en Usuarios
+        db.ref("pemtron_users").on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                appUsers = data;
+            } else {
+                // Si está vacío en Firebase, subimos los usuarios por defecto
+                appUsers = [...DEFAULT_USERS];
+                db.ref("pemtron_users").set(appUsers);
+            }
+            // Si el modal de usuarios está abierto, actualizarlo
+            if (document.getElementById("usersModal").style.display === "block") {
+                renderUsersTable();
+            }
+        });
+
+        // 2. Escuchar cambios en Logs
+        db.ref("pemtron_logs").on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                auditLogs = Array.isArray(data) ? data : Object.values(data);
+            } else {
+                auditLogs = [];
+            }
+            if (document.getElementById("logsModal").style.display === "block") {
+                openLogsModal(); // Re-renderizar si está abierto
+            }
+        });
+
+        // 3. Escuchar cambios en Datos (Máquinas y Entradas)
+        db.ref("pemtron_multi_data").on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                appData = data;
+                if (!appData.machines) appData.machines = [];
+                
+                // Validar que activeTabId exista
+                if (appData.machines.length > 0 && !appData.machines.some(m => m.id === appData.activeTabId)) {
+                    appData.activeTabId = appData.machines[0].id;
+                }
+                if (appData.machines.length === 0) {
+                    appData.activeTabId = null;
+                }
+
+                // Actualizar la interfaz solo si el usuario ya inició sesión
+                if (isLoggedIn()) {
+                    // Calcular el máximo ID para evitar colisiones
+                    let maxM = 0, maxE = 0;
+                    appData.machines.forEach(m => {
+                        if (m.id > maxM) maxM = m.id;
+                        (m.entries || []).forEach(e => { if (e.id > maxE) maxE = e.id; });
+                    });
+                    nextMachineId = maxM + 1;
+                    nextEntryId = maxE + 1;
+
+                    renderTabs();
+                    
+                    // Evitar parpadeo si estamos editando un formulario
+                    const isModalOpen = document.querySelector('.modal[style*="display: block"]');
+                    if (!isModalOpen) {
+                        renderActiveTabContent();
+                    }
+                }
+            }
+        });
+
+        // Mostrar pantalla de login inicial
+        document.getElementById("appContainer").style.display = "none";
+        document.getElementById("loginScreen").classList.remove("hidden");
+    })();
+</script>
+</body>
+</html>
